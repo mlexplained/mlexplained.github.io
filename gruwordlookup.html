@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+ <head>
+  <title>vis.js Graph demo</title>
+  <script src="http://visjs.org/dist/vis.js"></script>
+   <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        /*.tab {
+           padding-left: 4em;
+         }*/
+         tab1 { padding-left: 5em; }
+    </style>
+  <link href="http://visjs.org/dist/vis.css" rel="stylesheet" type="text/css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.4/jquery.min.js"></script>
+  <script>
+
+    var wordsId ={}
+    var graphHT = {}
+      // alert("loadfiles")
+      $.ajax({
+          type: "GET",
+          url: "fullvocab.csv",
+          dataType: "text",
+          success: function(data) {processData(data);}
+       });
+
+    function processData(allText) {
+        var counterId=0
+        var allTextLines = allText.split(/\r\n|\n/);
+        var lines = [];
+        var SIM_WORDS_CNT =10
+
+        for (var i=0; i<allTextLines.length; i++) {
+            var data = allTextLines[i].split(',');
+            lstwords =[]
+            lstdistances =[]
+            if (wordsId[data[0]] == undefined){
+              wordsId[data[0]]=counterId
+              counterId+=1
+            }
+            for (var j=1; j<data.length-SIM_WORDS_CNT; j++){
+              // Give the word an id if it not exists
+              if (wordsId[data[j]] == undefined){
+                wordsId[data[j]]=counterId
+                counterId+=1
+              }
+              // add wordlst and distances
+              lstwords.push(data[j])
+              lstdistances.push(parseFloat(data[j+SIM_WORDS_CNT]))
+            }
+            graphHT[data[0]]=[lstwords,lstdistances]
+        }
+    }
+    
+  </script>
+
+ 
+  
+ </head>
+
+ <body>
+
+   <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+        <div class="container">
+           
+            <div class="collapse navbar-collapse" id="navbar">
+                
+        <!-- Search -->
+              <div class="navbar-form navbar-right" >
+                          <div class="form-group">
+                              <!-- <tab1> -->
+
+                                  <font color="white"  >Levels</font>
+                                  <input type="text" id ="levels" class="form-control" value="2">
+                              <!-- </tab1> -->
+                          </div>
+              
+                      <div class="form-group">
+                         <input type="text" class="form-control" id="txtsearchword" value="harper" />
+                     </div>
+                    <button onclick="showGraph()"  class="btn btn-default"  >Find</button>
+              </div>
+
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container -->
+    </nav>
+
+  <div ><!-- class="wrapper" -->
+
+    
+    
+    
+  </div>
+
+ <div id="graph"  style="height: 800px;"></div> 
+
+  <script type="text/javascript">
+    
+    function buildGraph(nodes,edges){
+      var container = document.getElementById('graph');
+
+       var data = {
+        nodes: nodes,
+        edges: edges,
+       };
+
+       var network = new vis.Network(container, data, {});  
+    }
+
+
+    var nodesDic={}
+    var edges = []
+    var mainedges={} //used to remove cycle between 2 nodes
+    function getSimilar(keyword, dist=1, level=0, count=10){
+      
+      var vals=graphHT[keyword]
+      if (vals !=undefined){
+        var wId = wordsId[keyword]
+
+        if (nodesDic[keyword] == undefined)
+           nodesDic[keyword] = [wId,dist,level] 
+        var words=vals[0]
+        var dist =vals[1]
+        for (var i=0; i<count; i++){
+          var simWId= wordsId[words[i]]
+
+          if (nodesDic[words[i]] == undefined)
+            nodesDic[words[i]] = [simWId, dist[i], level+1] 
+
+          k=""
+          if (wId<simWId)
+            k = wId.toString()+','+simWId.toString()
+          else
+            k = simWId.toString()+','+wId.toString()
+          if (mainedges[k]==undefined){
+            edges.push({from: wId, to: simWId}) //value: Math.round(dist[i]/1000)
+            mainedges[k]=""
+          }
+          if(level< parseInt(document.getElementById('levels').value)-1){
+            getSimilar(words[i], 1, level+1, 3)
+          }
+      }  
+    }
+  }
+
+    function showGraph(){
+      // alert()
+      nodes=[]
+      edge = []
+      nodesDic={}
+
+      var keyword=document.getElementById('txtsearchword').value
+      getSimilar(keyword,0,0,5)      
+
+
+      for (var k in nodesDic ){
+        shape='ellipse'
+        if(k==keyword)
+          shape="star"
+        // nodes.push({id:nodesDic[k][0], label: k , title: nodesDic[k][1],
+        //               value:nodesDic[k][1],shape:shape,
+        //                scaling:{label:{enabled:true}}})
+
+        nodes.push({id:nodesDic[k][0], label: k , title: nodesDic[k][2],
+                      shape:shape,level:nodesDic[k][2]})
+      } 
+      buildGraph(nodes,edges)
+    }
+    
+  </script>
+
+ </body>
+</html>
